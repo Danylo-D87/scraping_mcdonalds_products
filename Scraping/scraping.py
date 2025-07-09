@@ -137,3 +137,6 @@ def get_all_products() -> None:
                 all_products_data.append(product_data)
 
     write_products_to_json(all_products_data)
+
+if __name__ == "__main__":
+    get_all_products()
