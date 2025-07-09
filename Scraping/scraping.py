@@ -1,12 +1,13 @@
 import re
 from typing import List
 
-import requests
 import bs4
+import requests
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+
 from Scraping.features import extract_float, get_driver, write_products_to_json
 
 
@@ -82,9 +83,9 @@ def get_info_about_product_with_selenium(driver: webdriver.Chrome, url: str) -> 
             "білки": "proteins",
             "ненасичені жири": "unsaturated_fats",
             "нжк:": "unsaturated_fats",
-            "цукор": "sugar",
-            "сіль": "salt",
-            "порція": "portion"
+            "цукор:": "sugar",
+            "сіль:": "salt",
+            "порція:": "portion"
         }
 
         for item in nutrition_items:
@@ -105,6 +106,7 @@ def get_info_about_product_with_selenium(driver: webdriver.Chrome, url: str) -> 
                 if metric_clean in ukr_to_eng:
                     key_eng = ukr_to_eng[metric_clean]
                     product[key_eng] = value_clean
+
             except Exception as e:
                 print(f"Error reading nutrition item: {e}")
                 continue
