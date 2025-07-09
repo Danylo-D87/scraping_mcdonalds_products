@@ -1,0 +1,30 @@
+# Python bytecode files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment folders
+.venv/
+env/
+venv/
+.venv
+
+# IDE settings
+.vscode/
+.idea/
+.idea
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Logs and databases
+*.log
+*.sqlite3
+
+# Output files
+Scraping/products.json
+
+# Selenium driver binaries if any stored locally (optional)
+chromedriver.exe
+chromedriver

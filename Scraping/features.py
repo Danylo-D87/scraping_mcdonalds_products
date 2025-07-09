@@ -19,7 +19,7 @@ def get_driver():
 
 def write_products_to_json(products: List) -> None:
 
-    with open("../products.json", "w", encoding="utf-8") as f:
+    with open("products.json", "w", encoding="utf-8") as f:
         json.dump(products, f, ensure_ascii=False, indent=4)
 
 
