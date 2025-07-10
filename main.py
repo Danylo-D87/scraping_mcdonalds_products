@@ -19,7 +19,6 @@ async def lifespan():
     Context manager for handling application lifecycle events (startup/shutdown).
     Loads product data from a JSON file into application memory on startup.
     """
-    print(f"ℹ️ Спроба завантажити дані продуктів з: {settings.products_file_path}")
     global app_products_by_name, app_all_products_list
 
     try:
@@ -35,23 +34,18 @@ async def lifespan():
                     all_products.append(product)
                     products_map[product.name.lower()] = product
                 except Exception as e:
-                    print(f"⚠️ Помилка валідації даних для продукту '{product_data.get('name', 'N/A')}': {e}")
                     continue
 
             app_products_by_name = products_map
             app_all_products_list = all_products
-            print(f"✅ Дані продуктів успішно завантажено з '{settings.products_file_path}'. Завантажено {len(app_all_products_list)} продуктів.")
 
     except FileNotFoundError:
-        print(f"⚠️ Помилка: Файл продуктів '{settings.products_file_path}' не знайдено при запуску. Переконайтеся, що скрапінг був запущений і файл існує.")
         app_products_by_name = {}
         app_all_products_list = []
     except json.JSONDecodeError:
-        print(f"❌ Помилка: Не вдалося декодувати JSON з файлу '{settings.products_file_path}'. Перевірте формат файлу.")
         app_products_by_name = {}
         app_all_products_list = []
     except Exception as e:
-        print(f"⛔️ Непередбачена помилка під час завантаження даних продуктів: {e}")
         app_products_by_name = {}
         app_all_products_list = []
 
@@ -101,7 +95,10 @@ def get_product_by_name(product_name: str):
     product = app_products_by_name.get(product_name.lower())
 
     if not product:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found"
+        )
     return product
 
 
@@ -117,7 +114,10 @@ def get_product_field(product_name: str, product_field: str):
 
     product = app_products_by_name.get(product_name.lower())
     if not product:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Product not found"
+        )
 
     product_dict = product.model_dump()
 
@@ -126,4 +126,7 @@ def get_product_field(product_name: str, product_field: str):
         if key.lower() == product_field_lower:
             return {key: value}
 
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Field '{product_field}' not found in product '{product_name}'")
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"Field '{product_field}' not found in product '{product_name}'"
+    )
