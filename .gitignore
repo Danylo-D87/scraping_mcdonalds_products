@@ -23,7 +23,7 @@ Thumbs.db
 *.sqlite3
 
 # Output files
-Scraping/products.json
+products.json
 
 # Selenium driver binaries if any stored locally (optional)
 chromedriver.exe

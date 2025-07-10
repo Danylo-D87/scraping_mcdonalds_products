@@ -1,60 +1,129 @@
-from fastapi import FastAPI, HTTPException
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, HTTPException, status
 import json
+from typing import List, Dict, Any
 
-from Scraping.scraping import get_all_products
-
-app = FastAPI()
-
-@app.get("/")
-def read_root():
-    return {"message": "McDonald's Products API"}
+from api.settings import get_settings
+from api.schemas import Product, ProductsListResponse
 
 
-@app.get("/all_products", summary="Get all products")
-def get_products():
-    """ Returns the list of all products saved in products.json. """
+settings = get_settings()
+
+app_products_by_name: Dict[str, Product] = {}
+app_all_products_list: List[Product] = []
+
+
+@asynccontextmanager
+async def lifespan():
+    """
+    Context manager for handling application lifecycle events (startup/shutdown).
+    Loads product data from a JSON file into application memory on startup.
+    """
+    print(f"ℹ️ Спроба завантажити дані продуктів з: {settings.products_file_path}")
+    global app_products_by_name, app_all_products_list
 
     try:
-        with open("Scraping/products.json", "r", encoding="utf-8") as f:
-            products = json.load(f)
-        return products
+        with open(settings.products_file_path, "r", encoding="utf-8") as f:
+            raw_products_data: List[Dict[str, Any]] = json.load(f)
+
+            all_products: List[Product] = []
+            products_map: Dict[str, Product] = {}
+
+            for product_data in raw_products_data:
+                try:
+                    product = Product(**product_data)
+                    all_products.append(product)
+                    products_map[product.name.lower()] = product
+                except Exception as e:
+                    print(f"⚠️ Помилка валідації даних для продукту '{product_data.get('name', 'N/A')}': {e}")
+                    continue
+
+            app_products_by_name = products_map
+            app_all_products_list = all_products
+            print(f"✅ Дані продуктів успішно завантажено з '{settings.products_file_path}'. Завантажено {len(app_all_products_list)} продуктів.")
+
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail="Products not found.")
+        print(f"⚠️ Помилка: Файл продуктів '{settings.products_file_path}' не знайдено при запуску. Переконайтеся, що скрапінг був запущений і файл існує.")
+        app_products_by_name = {}
+        app_all_products_list = []
+    except json.JSONDecodeError:
+        print(f"❌ Помилка: Не вдалося декодувати JSON з файлу '{settings.products_file_path}'. Перевірте формат файлу.")
+        app_products_by_name = {}
+        app_all_products_list = []
+    except Exception as e:
+        print(f"⛔️ Непередбачена помилка під час завантаження даних продуктів: {e}")
+        app_products_by_name = {}
+        app_all_products_list = []
+
+    yield
+
+    print("ℹ️ Додаток FastAPI завершує роботу.")
+
+
+app = FastAPI(
+    title="McDonald's Products API",
+    description="API for retrieving information about McDonald's products and their nutritional values.",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+
+# Base endpoints
+
+@app.get("/", summary="Root endpoint")
+def read_root():
+    return {
+        "message": "McDonald's Products API. Go to /docs for API documentation."
+    }
+
+
+# Оновлений ендпоінт для отримання всіх продуктів
+@app.get("/all_products", response_model=ProductsListResponse, summary="Get all products with details")
+def get_all_products_endpoint():
+    """
+    Returns a complete list of all available McDonald's products with their details and nutritional information.
+    The data is loaded into application memory on startup for fast access.
+    """
+
+    return {"products": app_all_products_list}
 
 
 @app.get(
-    "/products/{product_name}/{product_field}",
-    summary="Get specific field from a product"
+    "/products/{product_name}",
+    response_model=Product,
+    summary="Get full product details by name"
 )
-def get_product(product_name: str):
+def get_product_by_name(product_name: str):
     """
-    Return the full information about a product by its name.
-    Case-insensitive match.
+    Returns full information about a product by its name (case-insensitive search).
     """
-    with open("Scraping/products.json", "r", encoding="utf-8") as f:
-        products = json.load(f)
 
-    for product in products:
-        if product_name.lower() == product.get("name", "").lower():
-            return product
-    raise HTTPException(status_code=404, detail="Product not found")
+    product = app_products_by_name.get(product_name.lower())
+
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
+    return product
 
 
-@app.get("/products/{product_name}/{product_field}")
+@app.get(
+    "/products/{product_name}/field/{product_field}",
+    summary="Get a specific field from a product by name and field name"
+)
 def get_product_field(product_name: str, product_field: str):
     """
-    Return a specific field from a product.
-    Case-insensitive name and field match.
+    Returns the value of a specific product field by its name.
+    Both product name and field name searches are case-insensitive.
     """
 
-    with open("Scraping/products.json", "r", encoding="utf-8") as f:
-        products = json.load(f)
+    product = app_products_by_name.get(product_name.lower())
+    if not product:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Product not found")
 
-    for product in products:
-        if product_name.lower() == product.get("name", "").lower():
-            # return only the requested field if it exists
-            for key, value in product.items():
-                if key.lower() == product_field.lower():
-                    return {key: value}
-            raise HTTPException(status_code=404, detail="Field not found in product")
-    raise HTTPException(status_code=404, detail="Product not found")
+    product_dict = product.model_dump()
+
+    product_field_lower = product_field.lower()
+    for key, value in product_dict.items():
+        if key.lower() == product_field_lower:
+            return {key: value}
+
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Field '{product_field}' not found in product '{product_name}'")
