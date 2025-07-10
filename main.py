@@ -14,7 +14,7 @@ app_all_products_list: List[Product] = []
 
 
 @asynccontextmanager
-async def lifespan():
+async def lifespan(api: FastAPI):
     """
     Context manager for handling application lifecycle events (startup/shutdown).
     Loads product data from a JSON file into application memory on startup.
