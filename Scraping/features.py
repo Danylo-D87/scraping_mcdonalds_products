@@ -6,10 +6,13 @@ from typing import List
 from selenium.webdriver.chrome.options import Options
 from selenium import webdriver
 
+from api.settings import get_settings
+
 
 @contextmanager
 def get_driver():
     chrome_options = Options()
+    chrome_options.add_argument("--headless")
     driver = webdriver.Chrome(options=chrome_options)
     try:
         yield driver
@@ -19,7 +22,8 @@ def get_driver():
 
 def write_products_to_json(products: List) -> None:
 
-    with open("products.json", "w", encoding="utf-8") as f:
+    settings = get_settings()
+    with open(settings.products_file_path, "w", encoding="utf-8") as f:
         json.dump(products, f, ensure_ascii=False, indent=4)
 
 
